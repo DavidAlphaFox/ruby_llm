@@ -4,7 +4,11 @@ module RubyLLM
   module Providers
     class Gemini
       # Audio transcription helpers for the Gemini API implementation
+      #
+      # Gemini 没有专门的转写端点 —— 用一段固定 prompt 通过
+      # `:generateContent` 让多模态模型直接转写音频附件。
       module Transcription
+        # 默认转写指令（请求模型只输出转写文本，不附加注释）。
         DEFAULT_PROMPT = 'Transcribe the provided audio and respond with only the transcript text.'
 
         def transcribe(audio_file, model:, language:, **options)

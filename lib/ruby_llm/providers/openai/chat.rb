@@ -4,6 +4,17 @@ module RubyLLM
   module Providers
     class OpenAI
       # Chat methods of the OpenAI API integration
+      #
+      # OpenAI Chat Completions 协议实现。涵盖：
+      # - {#render_payload} —— 构造 `/v1/chat/completions` 请求体
+      #   （messages、tools、tool_choice、parallel_tool_calls、
+      #   response_format JSON Schema、reasoning_effort、stream_options）
+      # - {#parse_completion_response} —— 解析响应；同时处理 inline
+      #   `<think>...</think>` 与结构化 reasoning_content 两种思考输出形式
+      # - 各种 token 计数：input/output 在多家口径下的归一化（含
+      #   prompt_cache_hit/miss、completion_tokens 与 total-prompt 的兜底等）
+      # - {#format_role} —— 把 `:system` 翻译成 'system' 或 'developer'
+      #   （o-系列模型必须用 'developer' role）
       module Chat
         def completion_url
           'chat/completions'
@@ -11,6 +22,17 @@ module RubyLLM
 
         module_function
 
+        # 构造 chat/completions 请求体。
+        #
+        # @param messages [Array<RubyLLM::Message>]
+        # @param tools [Hash{Symbol => Tool}]
+        # @param temperature [Float, nil]
+        # @param model [Model::Info]
+        # @param stream [Boolean]
+        # @param schema [Hash, nil]
+        # @param thinking [Thinking::Config, nil]
+        # @param tool_prefs [Hash, nil]
+        # @return [Hash] 待提交的 JSON 请求体
         # rubocop:disable Metrics/ParameterLists,Metrics/PerceivedComplexity
         def render_payload(messages, tools:, temperature:, model:, stream: false, schema: nil,
                            thinking: nil, tool_prefs: nil)
@@ -51,6 +73,15 @@ module RubyLLM
         end
         # rubocop:enable Metrics/ParameterLists,Metrics/PerceivedComplexity
 
+        # 解析 chat/completions 响应为 {Message}。
+        #
+        # 处理细节：
+        # - `error.message` → 抛 {RubyLLM::Error}
+        # - 多种 thinking 输出形式：内嵌 `<think>` / 顶层 `reasoning_content` /
+        #   结构化 thinking blocks
+        # - token 字段在多个 provider 兼容模式下的字段名差异
+        #
+        # @return [Message, nil]
         def parse_completion_response(response)
           data = response.body
           return if data.empty?
@@ -132,6 +163,8 @@ module RubyLLM
           end
         end
 
+        # OpenAI o-系列推理模型把 system role 重命名为 'developer'。
+        # `openai_use_system_role` 配置可强制保留 'system'（兼容旧路径）。
         def format_role(role)
           case role
           when :system

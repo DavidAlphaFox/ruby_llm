@@ -4,6 +4,15 @@ module RubyLLM
   module Providers
     class Anthropic
       # Streaming methods of the Anthropic API integration
+      #
+      # Anthropic SSE 协议事件类型很丰富（message_start / content_block_start /
+      # content_block_delta / message_delta / message_stop / error 等）。
+      # `build_chunk` 通过 `delta_type` 分派：
+      # - `text_delta` → 正文增量
+      # - `thinking_delta` → 思考文本增量
+      # - `signature_delta` → 思考签名（thought_signature）
+      # - `input_json_delta` → 工具 arguments JSON 片段
+      # `parse_streaming_error` 把 `overloaded_error` 映射到 HTTP 529。
       module Streaming
         private
 

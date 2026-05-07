@@ -4,6 +4,13 @@ module RubyLLM
   module Providers
     class Bedrock
       # Media formatting for Bedrock Converse content blocks.
+      #
+      # Bedrock Converse 的 content 块格式：
+      # - 文本：`{text: ...}`
+      # - 图像：`{image: {format, source: {bytes}}}`
+      # - 文档：`{document: {format, name, source: {bytes}}}`
+      #   注意 document 必须有唯一 `name`，本模块用 `used_document_names`
+      #   防止同一会话中文档名重复。
       module Media
         module_function
 

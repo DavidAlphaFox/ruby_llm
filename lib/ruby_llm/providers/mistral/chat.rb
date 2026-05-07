@@ -4,6 +4,16 @@ module RubyLLM
   module Providers
     class Mistral
       # Chat methods for Mistral API
+      #
+      # Mistral 协议大体兼容 OpenAI，但有 3 处显著差异：
+      # 1. **`tool_choice: 'any'`** —— Mistral 用 `'any'` 而非 OpenAI 的
+      #    `'required'`；当只有单一工具时还需展开为 `{type: 'function', ...}`
+      # 2. **思考（thinking）双模式**：
+      #    - magistral 系列：`prompt_mode: 'reasoning'`
+      #    - mistral-small/medium 等可调推理：`reasoning_effort: 'high'/'none'`
+      #    其他模型不支持，会打 warn 并忽略 thinking 设置
+      # 3. **assistant 消息含 thinking**：要把 thinking 展开成
+      #    `[{type: 'thinking', ...}, {type: 'text', ...}]` 块数组
       module Chat
         module_function
 

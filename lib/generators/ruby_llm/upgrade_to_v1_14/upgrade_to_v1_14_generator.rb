@@ -7,6 +7,10 @@ require_relative '../generator_helpers'
 module RubyLLM
   module Generators
     # Generator to fix tool call thought signature column type for MySQL safety.
+    #
+    # 升级迁移：把 tool_calls 表的 `thought_signature` 列从 string
+    # 改为 text。Anthropic 的加密签名实际可能超出 MySQL TEXT 默认
+    # `varchar(255)` 长度，本迁移避免数据被截断。
     class UpgradeToV114Generator < Rails::Generators::Base
       include Rails::Generators::Migration
       include RubyLLM::Generators::GeneratorHelpers

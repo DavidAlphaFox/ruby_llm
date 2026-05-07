@@ -3,6 +3,9 @@
 module RubyLLM
   module Providers
     # DeepSeek API integration.
+    #
+    # DeepSeek 提供 OpenAI 兼容 API；继承 OpenAI 后只覆盖 base url、
+    # 认证头与少量 chat 行为差异（见 `DeepSeek::Chat`）。
     class DeepSeek < OpenAI
       include DeepSeek::Chat
 

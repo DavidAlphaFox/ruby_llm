@@ -3,6 +3,10 @@
 module RubyLLM
   module Providers
     # Ollama API integration.
+    #
+    # 本地运行的 Ollama 服务（默认 `http://localhost:11434`）。
+    # 提供 OpenAI 兼容 API；`local?` 为 true，可使用任意模型而无需
+    # 模型注册表收录。
     class Ollama < OpenAI
       include Ollama::Chat
       include Ollama::Media

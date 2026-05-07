@@ -4,13 +4,24 @@ module RubyLLM
   module Providers
     class OpenAI
       # Streaming methods of the OpenAI API integration
+      #
+      # OpenAI 流式响应解析：
+      # - SSE `data:` 行解析后得到 `data` hash
+      # - 取 `choices[0].delta` 作为本次增量
+      # - 工具调用 arguments 是字符串片段（`parse_arguments: false`），
+      #   由 {StreamAccumulator} 累积后整体 JSON.parse
+      # - 错误响应 `parse_streaming_error` 把 OpenAI 错误类型映射到
+      #   类似 HTTP 状态码语义
       module Streaming
         module_function
 
+        # 流式端点与同步端点相同（仅请求体里 `stream: true`）。
         def stream_url
           completion_url
         end
 
+        # 把单个 SSE data hash 构造成 {Chunk}。
+        # 注意 arguments 不在此层解析（流式中是片段），由累加器统一处理。
         def build_chunk(data)
           usage = data['usage'] || {}
           delta = data.dig('choices', 0, 'delta') || {}

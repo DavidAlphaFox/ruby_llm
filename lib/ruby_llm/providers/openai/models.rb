@@ -4,6 +4,10 @@ module RubyLLM
   module Providers
     class OpenAI
       # Models methods of the OpenAI API integration
+      #
+      # 调用 `/v1/models` 拉取可用模型列表。
+      # OpenAI 不在 API 中返回 context_window / pricing / capabilities，
+      # 因此从 {Capabilities} 模块按 model_id 模式匹配补充元数据。
       module Models
         module_function
 

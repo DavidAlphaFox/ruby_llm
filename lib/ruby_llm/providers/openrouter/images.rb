@@ -6,6 +6,11 @@ module RubyLLM
       # Image generation methods for the OpenRouter API integration.
       # OpenRouter uses the chat completions endpoint for image generation
       # instead of a dedicated images endpoint.
+      #
+      # OpenRouter 没有独立的 `/images/generations`，而是把图像生成
+      # 复用到 `/chat/completions` —— 通过 `modalities: ['image', 'text']`
+      # 触发，响应里的图像放在 `choices[0].message.images[]`。
+      # 因此本模块不支持 `size` 参数（被忽略）。
       module Images
         module_function
 

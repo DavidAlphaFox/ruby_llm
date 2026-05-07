@@ -3,7 +3,16 @@
 module RubyLLM
   module Providers
     # Azure AI Foundry / OpenAI-compatible API integration.
+    #
+    # Azure OpenAI 协议大体与 OpenAI 相同，但端点结构截然不同：
+    # 用 deployment 名而非 model 名、URL 中要带 api-version 查询串、
+    # 多种部署形态（resource_base / deployment_base / openai_v1_base /
+    # 完整 chat_endpoint URL）需要不同 endpoint 拼装规则。
+    #
+    # 因此重写了 `azure_endpoint(kind)` —— 根据 `api_base` 形态智能
+    # 决定如何拼接 chat/embeddings/models 路径与版本号。
     class Azure < OpenAI
+      # Azure 部署默认的 API 版本。
       AZURE_DEFAULT_CHAT_API_VERSION = '2024-05-01-preview'
       AZURE_DEFAULT_MODELS_API_VERSION = 'preview'
 
@@ -16,6 +25,7 @@ module RubyLLM
         @config.azure_api_base
       end
 
+      # Azure 支持两种认证：API key 或 AAD bearer token。
       def headers
         if @config.azure_api_key
           { 'api-key' => @config.azure_api_key }
@@ -28,6 +38,11 @@ module RubyLLM
         self.class.configured?(@config)
       end
 
+      # 根据 api_base 形态智能构造端点 URL。
+      #
+      # @param kind [Symbol] `:chat` / `:embeddings` / `:models`
+      # @return [String] 拼接好的相对/绝对 URL（含 api-version 查询串）
+      # @raise [ArgumentError]
       def azure_endpoint(kind)
         parts = azure_base_parts
 
@@ -48,6 +63,7 @@ module RubyLLM
           %i[azure_api_base azure_api_key azure_ai_auth_token]
         end
 
+        # 必填只是 base url；key 与 auth_token 二选一在 {.configured?} 中校验。
         def configuration_requirements
           %i[azure_api_base]
         end
@@ -57,6 +73,9 @@ module RubyLLM
         end
 
         # Azure works with deployment names, instead of model names
+        #
+        # Azure 用部署名（deployment name）而非模型名，注册表无法预知，
+        # 因此该 provider 始终允许"假定模型存在"。
         def assume_models_exist?
           true
         end

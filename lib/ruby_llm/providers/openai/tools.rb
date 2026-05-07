@@ -4,9 +4,18 @@ module RubyLLM
   module Providers
     class OpenAI
       # Tools methods of the OpenAI API integration
+      #
+      # OpenAI function calling 协议实现：
+      # - {tool_for(tool)} —— 把 RubyLLM::Tool 转为 OpenAI tools[i]
+      #   `{type: 'function', function: {name, description, parameters}}`
+      # - {build_tool_choice} —— 把 :auto/:none/:required 直传，工具名
+      #   则包装为 `{type: 'function', function: {name: ...}}`
+      # - {format_tool_calls} / {parse_tool_calls} —— 序列化与解析；
+      #   后者支持流式模式不解析 arguments（保留字符串片段）
       module Tools
         module_function
 
+        # 无参工具的占位 schema（OpenAI 要求 parameters 字段始终存在）。
         EMPTY_PARAMETERS_SCHEMA = {
           'type' => 'object',
           'properties' => {},

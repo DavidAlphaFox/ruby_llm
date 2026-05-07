@@ -2,12 +2,39 @@
 
 module RubyLLM
   # Represents the cost of token usage for a model response.
+  #
+  # 一次响应（或一段会话累计）的费用对象。
+  #
+  # 设计要点：
+  # 1. **两种构造形态**：单条消息基于 `tokens + model` 实时计算（按
+  #    每百万 token 单价折算）；多条消息聚合时用 {.aggregate}，把各条
+  #    的金额逐项加和（缺失字段会被传染为 nil 而不是 0）。
+  # 2. **缺失感知**：若某条消息有 token 但 model 注册表里没价格，
+  #    `total` 返回 nil 而非低估值；调用方据此知道"价格未知"。
+  # 3. **图像计费分支**：`category: :images` 时按图像类目价格计算，
+  #    并支持 `input_details` 描述 `text + image` 混合输入的计费。
+  # 4. **思考 token**：仅在 provider 把 reasoning 价格与 output 价格
+  #    分别定价时（{#thinking_priced_separately?}）才单独计费，
+  #    否则视为已包含在 output 里。
   class Cost
+    # 计费组件：`:input`、`:output`、`:cache_read`、`:cache_write`、`:thinking`。
     COMPONENTS = %i[input output cache_read cache_write thinking].freeze
+    # 单价基准：每百万 token。
     PER_MILLION = 1_000_000.0
 
+    # @return [RubyLLM::Tokens, nil]
+    # @return [RubyLLM::Model::Info, nil]
+    # @return [Symbol] 计费类目（`:text_tokens` / `:images` / ...）
     attr_reader :tokens, :model, :category
 
+    # 把多条 Cost 聚合为一条总费用。
+    #
+    # 关键细节：当任一原始 cost 在某 component 上"missing"（有 token 无
+    # 价格）时，聚合结果在该 component 上也标记 missing —— 即 total
+    # 返回 nil。这种"传染性 nil"避免了"漏算价格被静悄悄当成 0"。
+    #
+    # @param costs [Array<Cost>]
+    # @return [Cost]
     def self.aggregate(costs)
       costs = costs.compact.select(&:tokens?)
       return new(amounts: {}, has_tokens: false) if costs.empty?
@@ -23,6 +50,13 @@ module RubyLLM
       new(amounts:, missing:, has_tokens: true)
     end
 
+    # @param tokens [RubyLLM::Tokens, nil] token 计数
+    # @param model [String, Symbol, RubyLLM::Model::Info, #to_llm, nil]
+    # @param amounts [Hash{Symbol => Float}, nil] 聚合模式下直接给出金额
+    # @param missing [Array<Symbol>] 缺失价格的组件列表
+    # @param has_tokens [Boolean, nil] 显式覆盖"是否有 token"判定
+    # @param category [Symbol] 计费类目，默认 `:text_tokens`
+    # @param input_details [Hash, nil] 图像输入的明细
     # rubocop:disable Metrics/ParameterLists
     def initialize(tokens: nil, model: nil, amounts: nil, missing: [], has_tokens: nil, category: :text_tokens,
                    input_details: nil)
@@ -36,31 +70,23 @@ module RubyLLM
     end
     # rubocop:enable Metrics/ParameterLists
 
-    def input
-      amount_for(:input)
-    end
-
-    def output
-      amount_for(:output)
-    end
-
-    def cache_read
-      amount_for(:cache_read)
-    end
-
-    def cache_write
-      amount_for(:cache_write)
-    end
-
-    def thinking
-      amount_for(:thinking)
-    end
+    # @!group 各组件费用（USD）
+    def input         = amount_for(:input)
+    def output        = amount_for(:output)
+    def cache_read    = amount_for(:cache_read)
+    def cache_write   = amount_for(:cache_write)
+    def thinking      = amount_for(:thinking)
+    # @!endgroup
 
     alias reasoning thinking
 
     alias cached_input cache_read
     alias cache_creation cache_write
 
+    # 总费用（USD）。
+    # 任一组件 missing 时返回 nil（语义：价格未知，拒绝低估）。
+    #
+    # @return [Float, nil]
     def total
       return nil unless tokens?
       return nil if COMPONENTS.any? { |component| missing?(component) }

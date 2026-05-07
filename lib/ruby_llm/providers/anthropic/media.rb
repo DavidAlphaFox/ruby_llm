@@ -4,6 +4,13 @@ module RubyLLM
   module Providers
     class Anthropic
       # Handles formatting of media content (images, PDFs, audio) for Anthropic
+      #
+      # Anthropic content block 格式化：
+      # - 文本：`{type: 'text', text: ...}`
+      # - 图像：`{type: 'image', source: {type: 'url'|'base64', ...}}`
+      # - PDF：`{type: 'document', source: {...}}`（视觉模型支持文档解析）
+      # - 文本文件：包成 `<file>` 标签后作为 text block 嵌入
+      # - 不支持 audio（如需则抛 UnsupportedAttachmentError）
       module Media
         module_function
 

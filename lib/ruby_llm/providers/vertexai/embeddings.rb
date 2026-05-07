@@ -4,6 +4,11 @@ module RubyLLM
   module Providers
     class VertexAI
       # Embeddings methods for the Vertex AI implementation
+      #
+      # Vertex AI 用 `:predict` 端点，请求体形如
+      # `{instances: [{content: ...}], parameters: {outputDimensionality}}`。
+      # 与原生 Gemini 的 `:batchEmbedContents` 协议完全不同，因此**不能**
+      # 复用父类，本模块覆盖了完整 embedding 流程。
       module Embeddings
         module_function
 

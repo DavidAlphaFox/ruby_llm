@@ -4,6 +4,10 @@ module RubyLLM
   module Providers
     class Mistral
       # Model information for Mistral
+      #
+      # `/v1/models` 列表返回字段与 OpenAI 相同（id/object/owned_by），
+      # 但不含 context_window/capabilities/pricing —— 这些通过
+      # {Capabilities} 的多个查表方法（按 model_id 模式匹配）补全。
       module Models
         module_function
 

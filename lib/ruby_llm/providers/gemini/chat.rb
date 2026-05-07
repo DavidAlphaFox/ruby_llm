@@ -7,6 +7,15 @@ module RubyLLM
   module Providers
     class Gemini
       # Chat methods for the Gemini API implementation
+      #
+      # Gemini `:generateContent` 协议实现。
+      #
+      # 协议特点：
+      # - 端点形如 `models/<model_id>:generateContent`（model_id 拼到 URL 中）
+      # - 消息字段叫 `contents`，每条 content 含 `role` 与 `parts` 数组
+      # - 工具用 `tools[].functionDeclarations`，工具选择用 `toolConfig.functionCallingConfig`
+      # - 思考预算放在 `generationConfig.thinkingConfig.thinkingBudget`
+      # - 结构化输出用 `generationConfig.responseMimeType + responseSchema`
       module Chat
         module_function
 

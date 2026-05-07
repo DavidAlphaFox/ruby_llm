@@ -3,6 +3,9 @@
 module RubyLLM
   module Providers
     # Mistral API integration.
+    #
+    # Mistral 自家 API 基本兼容 OpenAI。继承 OpenAI 后只覆盖 base url、
+    # 认证头与个别 chat 字段差异。
     class Mistral < OpenAI
       include Mistral::Chat
       include Mistral::Models

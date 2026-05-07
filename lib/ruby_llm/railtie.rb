@@ -1,5 +1,14 @@
 # frozen_string_literal: true
 
+# =============================================================================
+# Rails 集成入口（仅在检测到 Rails 时定义）。
+#
+# 三件事：
+# 1. 注册 'RubyLLM' 缩略词（让 Rails inflector 不会把它转成 'Ruby_llm'）。
+# 2. 在 ActiveRecord 加载完成后注入 acts_as_* DSL —— 根据配置项
+#    `use_new_acts_as` 决定加载新版还是旧版（旧版会发 deprecation 警告）。
+# 3. 注册 rake 任务 `ruby_llm:load_models`。
+# =============================================================================
 if defined?(Rails::Railtie)
   module RubyLLM
     # Rails integration for RubyLLM

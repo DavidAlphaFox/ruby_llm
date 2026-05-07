@@ -4,6 +4,10 @@ module RubyLLM
   module Providers
     class Anthropic
       # Models methods of the Anthropic API integration
+      #
+      # `/v1/models` 列表 + 各种 token 计数字段的提取（Anthropic 把
+      # cache_read_input_tokens / cache_creation_input_tokens 暴露在
+      # message.usage 与 usage 两个层级，这里都做兜底）。
       module Models
         module_function
 

@@ -3,6 +3,11 @@
 module RubyLLM
   module Providers
     # OpenRouter API integration.
+    #
+    # OpenRouter 是多家模型的聚合代理，OpenAI 兼容协议。错误响应中
+    # 常嵌套上游 provider 的原始错误（在 `error.metadata.raw` 里），
+    # 因此这里覆盖 `parse_error` 把"OpenRouter 消息 - 上游消息"拼接
+    # 输出，便于排查上游真实问题。
     class OpenRouter < OpenAI
       include OpenRouter::Chat
       include OpenRouter::Models
@@ -19,6 +24,7 @@ module RubyLLM
         }
       end
 
+      # 兼容 hash / 数组的错误响应（OpenRouter 偶尔返回数组）。
       def parse_error(response)
         return if response.body.empty?
 
@@ -37,6 +43,7 @@ module RubyLLM
 
       private
 
+      # 拼装"OpenRouter 错误消息 - 上游 provider 错误消息"。
       def parse_error_part_message(part)
         message = part.dig('error', 'message')
         raw = try_parse_json(part.dig('error', 'metadata', 'raw'))

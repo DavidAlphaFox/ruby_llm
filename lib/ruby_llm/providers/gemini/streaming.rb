@@ -4,7 +4,13 @@ module RubyLLM
   module Providers
     class Gemini
       # Streaming methods for the Gemini API implementation
+      #
+      # Gemini 流式：URL 不同（`:streamGenerateContent`），且必须带
+      # `?alt=sse` 让响应使用 SSE 而不是默认的换行分隔 JSON。
+      # chunk 的结构与同步响应类似（candidates[0].content.parts），
+      # thinking 通过 `parts[i].thought` 与 `parts[i].thoughtSignature` 给出。
       module Streaming
+        # @return [String]
         def stream_url
           "models/#{@model}:streamGenerateContent?alt=sse"
         end

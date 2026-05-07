@@ -4,6 +4,14 @@ module RubyLLM
   module Providers
     class Mistral
       # Determines capabilities for Mistral models
+      #
+      # 按 model_id 正则匹配判断各项能力（streaming、tools、vision、
+      # reasoning、json_mode 等），并提供：
+      # - {.format_display_name} —— 友好展示名
+      # - {.model_family} —— 家族归类
+      # - {.modalities_for} —— 模态列表
+      # - {.capabilities_for} —— 总能力清单
+      # - {.release_date_for} —— 发布日期（用于 created_at 字段）
       module Capabilities
         module_function
 

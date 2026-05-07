@@ -3,6 +3,9 @@
 module RubyLLM
   module Providers
     # GPUStack API integration based on Ollama.
+    #
+    # GPUStack（自托管 GPU 集群）提供 OpenAI 兼容 API。被标记为
+    # `local?` 以跳过模型注册表的严格校验（用户私有模型可直接使用）。
     class GPUStack < OpenAI
       include GPUStack::Chat
       include GPUStack::Models

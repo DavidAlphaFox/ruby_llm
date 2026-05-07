@@ -2,9 +2,33 @@
 
 module RubyLLM
   # Handles streaming responses from AI providers.
+  #
+  # 流式响应的通用处理逻辑（被 {Provider} include）。
+  #
+  # 该模块封装：
+  # 1. **请求驱动**：用 Faraday 的 `on_data` 钩子分块接收响应字节，
+  #    把字节流喂给 `event_stream_parser` 解析 SSE 协议。
+  # 2. **chunk 派发**：每解析出一个 JSON `data:` 事件，调用子类提供的
+  #    `build_chunk(hash)` 得到 `Chunk` 对象，再交给用户回调与
+  #    {StreamAccumulator}。
+  # 3. **错误处理**：识别 `event: error` SSE 事件、非 200 响应、JSON
+  #    错误体、`{"error": ...}` 嵌入，统一交给 {ErrorMiddleware}。
+  # 4. **Faraday 1/2 双兼容**：v1 用 `req.options[:on_data]`，v2 用
+  #    `req.options.on_data` 且回调签名不同（额外的 env 参数）。
+  #
+  # 子类（各 provider 的 `Streaming` mixin）需要实现：
+  #   - `stream_url` —— 流式端点 URL
+  #   - `build_chunk(data)` —— 将 SSE 事件 hash 构造成 {Chunk}
   module Streaming
     module_function
 
+    # 以流式方式发起补全请求。
+    #
+    # @param connection [RubyLLM::Connection]
+    # @param payload [Hash] 请求体（必须已设置 stream=true 等字段）
+    # @param additional_headers [Hash] 额外 HTTP 头
+    # @yield [chunk] 用户回调，每个解析出的 chunk 触发一次
+    # @return [RubyLLM::Message] 由 StreamAccumulator 拼装出的最终消息
     def stream_response(connection, payload, additional_headers = {}, &block)
       accumulator = StreamAccumulator.new
 
@@ -28,6 +52,8 @@ module RubyLLM
       message
     end
 
+    # 包装一个 chunk 处理函数，使其只对 hash 形态的解析结果生效。
+    # 子类的 `build_chunk` 把 hash 转为 {Chunk} 后交给回调。
     def handle_stream(&block)
       build_on_data_handler do |data|
         block.call(build_chunk(data)) if data.is_a?(Hash)
@@ -40,6 +66,9 @@ module RubyLLM
       Faraday::VERSION.start_with?('1')
     end
 
+    # 构造一个 Faraday `on_data` 处理器：
+    # 把字节流送入 `EventStreamParser`，每解析出一个 SSE 事件就交给
+    # `handler` 进一步处理。
     def build_on_data_handler(&handler)
       buffer = +''
       parser = EventStreamParser::Parser.new
@@ -51,6 +80,8 @@ module RubyLLM
       )
     end
 
+    # 单个原始字节块的入口分发：
+    # 优先识别错误格式（SSE error 事件 / JSON 错误体），其余走正常 SSE 解析。
     def process_stream_chunk(chunk, parser, env, &)
       RubyLLM.logger.debug { "Received chunk: #{chunk}" } if RubyLLM.config.log_stream_debug
 
@@ -63,10 +94,12 @@ module RubyLLM
       end
     end
 
+    # 是否是 SSE 风格的错误事件（开头为 `event: error`）。
     def error_chunk?(chunk)
       chunk.start_with?('event: error')
     end
 
+    # 是否是裸 JSON 错误体（部分 provider 在错误时不发 SSE）。
     def json_error_payload?(chunk)
       chunk.lstrip.start_with?('{') && chunk.include?('"error"')
     end
@@ -144,9 +177,18 @@ module RubyLLM
     end
 
     # Builds Faraday on_data handlers for different major versions.
+    #
+    # 针对 Faraday v1 与 v2 的 `on_data` 回调签名差异提供适配：
+    #   - v1: `proc { |chunk, size| ... }`
+    #   - v2: `proc { |chunk, bytes, env| ... }`
+    # v2 在 env 可见状态码非 200 时把 chunk 视为错误体处理。
     module FaradayHandlers
       module_function
 
+      # @param faraday_v1 [Boolean]
+      # @param on_chunk [Proc] 正常状态下的字节块处理器
+      # @param on_failed_response [Proc] 失败响应字节块处理器
+      # @return [Proc]
       def build(faraday_v1:, on_chunk:, on_failed_response:)
         if faraday_v1
           v1_on_data(on_chunk)

@@ -5,6 +5,14 @@ require 'rails/generators'
 module RubyLLM
   module Generators
     # Generator for RubyLLM tool classes and related message partials.
+    #
+    # `bin/rails g ruby_llm:tool <Name>` 生成：
+    # - `app/tools/<name>_tool.rb`（继承 RubyLLM::Tool 的骨架）
+    # - `app/views/messages/tool_calls/_<name>.html.erb`（工具调用展示）
+    # - `app/views/messages/tool_results/_<name>.html.erb`（工具结果展示）
+    #
+    # 若工程中已有 `_default.html.erb` 模板，则基于它派生（替换标题为
+    # 当前工具名）；否则使用内置模板。
     class ToolGenerator < Rails::Generators::NamedBase
       source_root File.expand_path('templates', __dir__)
 

@@ -5,6 +5,9 @@ require 'rails/generators'
 module RubyLLM
   module Generators
     # Generator for RubyLLM schema classes.
+    #
+    # `bin/rails g ruby_llm:schema <Name>` —— 在 `app/schemas/` 下生成
+    # 一个 RubyLLM::Schema 子类骨架（自动追加 `Schema` 后缀）。
     class SchemaGenerator < Rails::Generators::NamedBase
       source_root File.expand_path('templates', __dir__)
 

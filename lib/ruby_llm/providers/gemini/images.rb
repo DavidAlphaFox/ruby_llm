@@ -4,6 +4,9 @@ module RubyLLM
   module Providers
     class Gemini
       # Image generation methods for the Gemini API implementation
+      #
+      # Gemini 走 `:predict` 端点（Vertex AI 兼容）。**不支持自定义
+      # 图像尺寸**，传入的 `size` 参数仅打 debug 后忽略。
       module Images
         def images_url(with: nil, mask: nil) # rubocop:disable Lint/UnusedMethodArgument
           "models/#{@model}:predict"

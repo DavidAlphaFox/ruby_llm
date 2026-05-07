@@ -7,6 +7,14 @@ module RubyLLM
   module Providers
     class Bedrock
       # SigV4 authentication helpers for Bedrock.
+      #
+      # 实现 AWS Signature Version 4 签名（不依赖 aws-sdk）：
+      # - 计算 canonical request → string to sign → 签名
+      # - 通过 `signed_post` / `signed_get` 包装 Faraday 请求
+      # - 支持长期凭据（access key + secret key）与临时凭据（含 session token）
+      #
+      # 这里手写 SigV4 是为了让 gem 不引入沉重的 aws-sdk 依赖；签名
+      # 算法见 AWS 官方文档 "Signing AWS API Requests"。
       module Auth
         private
 

@@ -4,6 +4,9 @@ module RubyLLM
   module Providers
     class OpenRouter
       # Streaming methods of the OpenRouter API integration
+      #
+      # SSE 解析格式与 OpenAI 一致；额外处理 `reasoning_details` 数组
+      # （流式状态下 thinking 也通过此字段分块返回）。
       module Streaming
         module_function
 

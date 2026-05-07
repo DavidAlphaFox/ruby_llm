@@ -4,6 +4,9 @@ module RubyLLM
   module Providers
     class Gemini
       # Embeddings methods for the Gemini API integration
+      #
+      # Gemini 用 `:batchEmbedContents` 端点 —— 单条/批量都包成 requests
+      # 数组发送。
       module Embeddings
         module_function
 

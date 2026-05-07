@@ -4,9 +4,21 @@ module RubyLLM
   module Providers
     class OpenAI
       # Provider-level capability checks and narrow registry fallbacks.
+      #
+      # 当 `/v1/models` 返回的元数据不全时，本模块根据 model_id 的
+      # 命名模式（`MODEL_PATTERNS`）推断：
+      # - 模型家族（gpt5 / o1 / gpt4o / embedding3_small / ...）
+      # - context window / max output tokens
+      # - 各项能力（vision / functions / structured_output / reasoning）
+      # - 价格（`PRICES` 表，按家族给定每百万 token 单价）
+      #
+      # 这些推断是"硬编码兜底"，与 models.json 合并后被 Model::Info 持有。
+      # 模型家族新增/价格调整时需在本文件维护。
       module Capabilities
         module_function
 
+        # 模型 ID 模式 → 家族名映射表（精心编排正则的优先级顺序：先匹配
+        # 更具体的子型号，再匹配父型号）。
         MODEL_PATTERNS = {
           gpt_image15: /^gpt-image-1\.5/,
           gpt_image_mini: /^gpt-image-1-mini/,
@@ -45,6 +57,8 @@ module RubyLLM
           moderation: /^(?:omni|text)-moderation/
         }.freeze
 
+        # 每个家族的单价（USD per million tokens）。某些家族（图像类）
+        # 同时定义 text 与 images 两套价格。
         PRICES = {
           gpt_image: {
             text: { input: 5.0, cached_input: 1.25 },
@@ -92,6 +106,8 @@ module RubyLLM
           moderation: { price: 0.0 }
         }.freeze
 
+        # 不适用 context window / max output tokens 概念的家族
+        # （embedding、TTS、moderation、whisper、图像生成）。
         NIL_LIMIT_FAMILIES = %w[
           gpt_image
           gpt_image_mini

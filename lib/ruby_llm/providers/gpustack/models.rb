@@ -4,6 +4,11 @@ module RubyLLM
   module Providers
     class GPUStack
       # Models methods of the GPUStack API integration
+      #
+      # GPUStack 的 `/v1/models` 返回不同于 OpenAI：包 `items` 数组、
+      # 每项有 `categories`（llm / embedding）与 `meta`（n_ctx /
+      # support_tool_calls / support_vision 等）。
+      # 本模块据此推断 capabilities 与 modalities。
       module Models
         module_function
 

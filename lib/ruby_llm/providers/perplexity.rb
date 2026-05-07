@@ -3,6 +3,10 @@
 module RubyLLM
   module Providers
     # Perplexity API integration.
+    #
+    # Perplexity 提供 OpenAI 兼容 API（带在线搜索能力）。鉴权失败时
+    # 会返回 HTML 错误页而非 JSON，这里覆盖 `parse_error` 从 `<title>`
+    # 中提取错误描述。
     class Perplexity < OpenAI
       include Perplexity::Chat
       include Perplexity::Models
@@ -32,6 +36,8 @@ module RubyLLM
         end
       end
 
+      # Perplexity 在认证错误时返回 HTML（而非常见的 JSON 错误体），
+      # 这里专门从 `<title>` 抽取错误描述并去掉前导状态码。
       def parse_error(response)
         body = response.body
         return if body.empty?

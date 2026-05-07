@@ -5,6 +5,10 @@ require 'rails/generators'
 module RubyLLM
   module Generators
     # Generator for RubyLLM agent classes and prompt files.
+    #
+    # `bin/rails g ruby_llm:agent <Name>` 生成：
+    # - `app/agents/<name>.rb`（继承 RubyLLM::Agent 的骨架类）
+    # - `app/prompts/<name>/instructions.txt.erb`（默认 instructions 模板）
     class AgentGenerator < Rails::Generators::NamedBase
       source_root File.expand_path('templates', __dir__)
 

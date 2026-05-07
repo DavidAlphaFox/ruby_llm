@@ -2,9 +2,27 @@
 
 module RubyLLM
   # Registry of available AI models and their capabilities.
+  #
+  # 模型注册表 —— 全局单例，承载 800+ 模型的元数据与查找/解析逻辑。
+  #
+  # 数据流：
+  #
+  # 1. **加载**（{Models#initialize}）：从 `models.json` 读入；
+  #    当应用启用 `acts_as_chat` 时被 monkey-patch 改为先读数据库
+  #    （见 `active_record/acts_as.rb`）。
+  # 2. **解析**（{Models.resolve}）：把用户给的 `model_id`（可能是别名）
+  #    映射到具体的 {Model::Info} 与对应 Provider 实例。这是 Chat、
+  #    Embedding 等所有任务的统一入口。
+  # 3. **检索**（{#find}）：按 `[id, provider]` 精确查；不指定 provider
+  #    时按 {PROVIDER_PREFERENCE} 给出"最优 provider"的版本。
+  # 4. **刷新**（{Models.refresh!}）：远程拉取所有已配置 provider 的
+  #    模型清单 + 从 models.dev 拉公共元数据，与现有数据合并后落盘。
+  #
+  # `Enumerable` 由 {#each} 提供（迭代当前所有模型）。
   class Models
     include Enumerable
 
+    # models.dev 的 provider key → RubyLLM provider slug 映射。
     MODELS_DEV_PROVIDER_MAP = {
       'openai' => 'openai',
       'anthropic' => 'anthropic',
@@ -16,6 +34,10 @@ module RubyLLM
       'openrouter' => 'openrouter',
       'perplexity' => 'perplexity'
     }.freeze
+
+    # 当一个 model id 在多个 provider 上都存在时，按此顺序优先选择
+    # （例如 `claude-sonnet-4` 同时在 anthropic / bedrock / vertexai 上
+    # 都可用，未指定 provider 时优先 anthropic）。
     PROVIDER_PREFERENCE = %w[
       openai
       anthropic
@@ -33,18 +55,24 @@ module RubyLLM
     ].freeze
 
     class << self
+      # 全局单例。
       def instance
         @instance ||= new
       end
 
+      # JSON Schema 文件路径（用于校验 models.json 结构）。
       def schema_file
         File.expand_path('models_schema.json', __dir__)
       end
 
+      # 从默认 / 自定义路径加载模型表。
+      # 当应用启用 acts_as 时，此方法会被 monkey-patch 优先读 DB。
       def load_models(file = RubyLLM.config.model_registry_file)
         read_from_json(file)
       end
 
+      # 从 JSON 文件读取并实例化为 Model::Info 列表，做 `filter_models` 清洗。
+      # 解析失败时返回空数组（不抛错，让应用启动时有降级）。
       def read_from_json(file = RubyLLM.config.model_registry_file)
         data = File.exist?(file) ? File.read(file) : '[]'
         models = JSON.parse(data, symbolize_names: true).map { |model| Model::Info.new(model) }
@@ -53,6 +81,11 @@ module RubyLLM
         []
       end
 
+      # 全量刷新模型注册表。
+      #
+      # @param remote_only [Boolean] 仅刷新远程 provider（跳过 Ollama
+      #   等本地 provider）；默认 false
+      # @return [Models] 新单例
       def refresh!(remote_only: false)
         existing_models = load_existing_models
 
@@ -103,6 +136,24 @@ module RubyLLM
         fetch_provider_models(remote_only: remote_only)[:models]
       end
 
+      # 解析 model_id 到 [{Model::Info}, {Provider} 实例]。
+      #
+      # 行为分两路：
+      # 1. **assume_exists=true**（或 provider 是 local? / assume_models_exist?）：
+      #    跳过注册表查找，直接用 `Model::Info.default` 构造一个"假定
+      #    存在"的模型。本地模型（Ollama）会先尝试在注册表中查到真实
+      #    元数据。
+      # 2. **assume_exists=false**：在注册表中查找；若指定了 provider
+      #    则做严格匹配，未指定则按 {PROVIDER_PREFERENCE} 选最佳。
+      #
+      # @param model_id [String] 模型 ID 或别名
+      # @param provider [Symbol, String, nil]
+      # @param assume_exists [Boolean]
+      # @param config [Configuration, nil]
+      # @return [Array(Model::Info, Provider)]
+      # @raise [ArgumentError] assume_exists=true 但未指定 provider
+      # @raise [Error] provider slug 未注册
+      # @raise [ModelNotFoundError] 注册表中找不到
       def resolve(model_id, provider: nil, assume_exists: false, config: nil) # rubocop:disable Metrics/PerceivedComplexity
         config ||= RubyLLM.config
         provider_class = provider ? Provider.providers[provider.to_sym] : nil
@@ -136,6 +187,8 @@ module RubyLLM
         [model, provider_instance]
       end
 
+      # 把所有未匹配的类方法转发给 instance —— 使得 `RubyLLM.models.find`
+      # 与 `RubyLLM::Models.find` 行为一致。
       def method_missing(method, ...)
         if instance.respond_to?(method)
           instance.send(method, ...)
@@ -408,26 +461,36 @@ module RubyLLM
       end
     end
 
+    # @param models [Array<Model::Info>, nil] 显式注入模型列表（用于
+    #   测试）；nil 时调用类级 `load_models` 加载
     def initialize(models = nil)
       @models = self.class.filter_models(models || self.class.load_models)
     end
 
+    # 重新从 JSON 文件加载（覆盖当前实例数据）。
     def load_from_json!(file = RubyLLM.config.model_registry_file)
       @models = self.class.read_from_json(file)
     end
 
+    # 把当前模型列表写回 JSON 文件（refresh! 后落盘）。
     def save_to_json(file = RubyLLM.config.model_registry_file)
       File.write(file, JSON.pretty_generate(all.map(&:to_h)))
     end
 
-    def all
-      @models
-    end
+    # @return [Array<Model::Info>]
+    def all = @models
 
+    # Enumerable 接口实现。
     def each(&)
       all.each(&)
     end
 
+    # 在注册表中查找模型。
+    #
+    # @param model_id [String]
+    # @param provider [Symbol, String, nil]
+    # @return [Model::Info]
+    # @raise [ModelNotFoundError] 找不到时
     def find(model_id, provider = nil)
       if provider
         find_with_provider(model_id, provider)
@@ -436,26 +499,32 @@ module RubyLLM
       end
     end
 
+    # 仅 chat 模型的子集（返回新 Models 实例）。
     def chat_models
       self.class.new(all.select { |m| m.type == 'chat' })
     end
 
+    # 仅 embedding 模型。
     def embedding_models
       self.class.new(all.select { |m| m.type == 'embedding' || m.modalities.output.include?('embeddings') })
     end
 
+    # 仅音频模型。
     def audio_models
       self.class.new(all.select { |m| m.type == 'audio' || m.modalities.output.include?('audio') })
     end
 
+    # 仅图像模型。
     def image_models
       self.class.new(all.select { |m| m.type == 'image' || m.modalities.output.include?('image') })
     end
 
+    # 按家族（如 `'gpt-5'`、`'claude-sonnet'`）过滤。
     def by_family(family)
       self.class.new(all.select { |m| m.family == family.to_s })
     end
 
+    # 按 provider 过滤。
     def by_provider(provider)
       self.class.new(all.select { |m| m.provider == provider.to_s })
     end
@@ -470,6 +539,8 @@ module RubyLLM
 
     private
 
+    # 严格匹配：先把别名解析为真实 ID，再按 (id, provider) 查找。
+    # Bedrock 还需要应用区域前缀（cross-region inference profile）。
     def find_with_provider(model_id, provider)
       resolved_id = Aliases.resolve(model_id, provider)
       resolved_id = resolve_bedrock_region_id(resolved_id) if provider.to_s == 'bedrock'
@@ -492,6 +563,8 @@ module RubyLLM
       Providers::Bedrock::Models.normalize_inference_profile_id(model_id, inference_types, region)
     end
 
+    # 不指定 provider 时的查找：先精确按 ID 找；若多个 provider 都有，
+    # 按 {PROVIDER_PREFERENCE} 选一；都找不到则别名解析后再来一次。
     def find_without_provider(model_id)
       exact_matches = all.select { |m| m.id == model_id }
       return preferred_match(exact_matches) if exact_matches.any?
@@ -503,6 +576,8 @@ module RubyLLM
       raise(ModelNotFoundError, "Unknown model: #{model_id}")
     end
 
+    # 多个候选时按 PROVIDER_PREFERENCE 顺序取第一个；没在偏好列表里
+    # 的 provider 排到最后。
     def preferred_match(candidates)
       return candidates.first if candidates.size == 1
 

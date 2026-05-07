@@ -4,9 +4,15 @@ module RubyLLM
   module Providers
     class OpenAI
       # Image generation methods for the OpenAI API integration
+      #
+      # OpenAI 图像 API 实现：
+      # - 无附件 → `/v1/images/generations`（DALL-E / gpt-image）
+      # - 有 with/mask → `/v1/images/edits`（multipart 上传）
+      # 返回值同时支持 URL（DALL-E）与 base64（gpt-image 内嵌）。
       module Images
         module_function
 
+        # 端点动态选择：编辑场景走 edits，纯生成走 generations。
         def images_url(with: nil, mask: nil)
           editing?(with, mask) ? 'images/edits' : 'images/generations'
         end

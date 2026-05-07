@@ -4,6 +4,10 @@ module RubyLLM
   module Providers
     class Gemini # rubocop:disable Style/Documentation
       # Media handling methods for the Gemini API integration
+      #
+      # 把 RubyLLM Content 转为 Gemini 的 parts 数组。Gemini 用
+      # `inline_data {mime_type, data}`（base64）或 `file_data {file_uri}`
+      # （URL）承载二进制；与 OpenAI/Anthropic 字段名都不同。
       module Media
         module_function
 

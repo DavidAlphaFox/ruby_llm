@@ -7,6 +7,9 @@ require_relative '../generator_helpers'
 module RubyLLM
   module Generators
     # Generator to upgrade existing RubyLLM apps to v1.7 with new Rails-like API
+    #
+    # `bin/rails g ruby_llm:upgrade_to_v1_7` —— 把旧版表结构迁移到
+    # v1.7 引入的"Rails 友好 API"（重命名列、调整 FK、新增 Model 表等）。
     class UpgradeToV17Generator < Rails::Generators::Base
       include Rails::Generators::Migration
       include RubyLLM::Generators::GeneratorHelpers

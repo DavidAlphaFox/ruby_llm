@@ -7,6 +7,14 @@ require_relative '../generator_helpers'
 module RubyLLM
   module Generators
     # Generator for RubyLLM Rails models and migrations
+    #
+    # `bin/rails g ruby_llm:install` —— Rails 集成的一键安装。
+    # 生成：
+    # - `Chat` / `Message` / `ToolCall` / `Model` 四张 AR 模型 + 对应迁移
+    # - 各模型自动 `acts_as_*` 声明
+    # - 默认 include ActiveStorage（可用 `--skip_active_storage` 跳过）
+    #
+    # 支持自定义命名：`bin/rails g ruby_llm:install chat:ChatBot message:Reply`
     class InstallGenerator < Rails::Generators::Base
       include Rails::Generators::Migration
       include RubyLLM::Generators::GeneratorHelpers

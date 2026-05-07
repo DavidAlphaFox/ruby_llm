@@ -4,9 +4,13 @@ module RubyLLM
   module Providers
     class Gemini
       # Provider-level capability checks and narrow registry fallbacks.
+      #
+      # 当 Gemini 模型注册表元数据不全时，按家族（gemini-2.5 / 2.0 /
+      # 1.5 / pro / flash）查表得到价格、context window、能力开关。
       module Capabilities
         module_function
 
+        # 各家族的每百万 token 单价。
         PRICES = {
           flash_2: { input: 0.10, output: 0.40 }, # rubocop:disable Naming/VariableNumber
           flash_lite_2: { input: 0.075, output: 0.30 }, # rubocop:disable Naming/VariableNumber

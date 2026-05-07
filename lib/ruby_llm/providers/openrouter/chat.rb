@@ -4,6 +4,15 @@ module RubyLLM
   module Providers
     class OpenRouter
       # Chat methods of the OpenRouter API integration
+      #
+      # OpenRouter 协议是 OpenAI 的超集，主要差异：
+      # - **`reasoning` 字段统一**：用 `{effort, max_tokens, enabled}` 哈希
+      #   替代 OpenAI 的 `reasoning_effort` 和 Anthropic 的 `thinking`
+      # - **`reasoning_details` 数组**：响应里把推理拆为多个 detail
+      #   `{type: 'reasoning.text'/'reasoning.summary'/'reasoning.encrypted', ...}`
+      #   本模块负责把它们抽取并合并成统一的 thinking text + signature
+      # - **strict 不能写在 schema 里**：OpenRouter 要求 strict 仅出现在
+      #   外层 json_schema 字段，因此渲染时把内层 strict 删除
       module Chat
         module_function
 

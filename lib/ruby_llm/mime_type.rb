@@ -4,29 +4,36 @@ require 'marcel'
 
 module RubyLLM
   # MimeTypes module provides methods to handle MIME types using Marcel gem
+  #
+  # MIME 类型判定工具。
+  #
+  # 在 `Marcel::MimeType.for` 之上提供更高层的"是否文本/图像/视频/
+  # 音频/PDF"判定。{text?} 的逻辑相对复杂，因为不少应用层 MIME
+  # 类型实际上是文本（JSON、YAML、XML、JS 源码等），但前缀是
+  # `application/` —— 需要额外白名单与后缀匹配兜底。
   module MimeType
     module_function
 
+    # 透传 Marcel 的 MIME 探测（按文件名/内容/path 综合判定）。
+    # @return [String]
     def for(...)
       Marcel::MimeType.for(...)
     end
 
-    def image?(type)
-      type.start_with?('image/')
-    end
+    # @param type [String]
+    # @return [Boolean]
+    def image?(type) = type.start_with?('image/')
+    # @return [Boolean]
+    def video?(type) = type.start_with?('video/')
+    # @return [Boolean]
+    def audio?(type) = type.start_with?('audio/')
+    # @return [Boolean]
+    def pdf?(type)   = type == 'application/pdf'
 
-    def video?(type)
-      type.start_with?('video/')
-    end
-
-    def audio?(type)
-      type.start_with?('audio/')
-    end
-
-    def pdf?(type)
-      type == 'application/pdf'
-    end
-
+    # 文本判定 —— 三个条件任一满足即视为文本：
+    # 1. 以 `text/` 开头
+    # 2. 以已知"文本派生"后缀结尾（`+json`、`+xml`、`+yaml` 等）
+    # 3. 命中 NON_TEXT_PREFIX_TEXT_MIME_TYPES 白名单
     def text?(type)
       type.start_with?('text/') ||
         TEXT_SUFFIXES.any? { |suffix| type.end_with?(suffix) } ||

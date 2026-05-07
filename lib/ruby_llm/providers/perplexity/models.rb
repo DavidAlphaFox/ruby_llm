@@ -4,7 +4,11 @@ module RubyLLM
   module Providers
     class Perplexity
       # Models methods of the Perplexity API integration
+      #
+      # Perplexity 没有 `/models` 列表端点；本模块返回静态 5 款 sonar
+      # 模型列表，所有元数据来自 {Capabilities} 查表。
       module Models
+        # 当前支持的全部 Perplexity 模型（按家族硬编码）。
         MODEL_IDS = %w[
           sonar
           sonar-pro
@@ -13,6 +17,7 @@ module RubyLLM
           sonar-deep-research
         ].freeze
 
+        # 覆盖 list_models —— 不发 HTTP 请求，直接返回静态列表。
         def list_models(**)
           slug = 'perplexity'
           parse_list_models_response(nil, slug, Perplexity::Capabilities)

@@ -7,6 +7,10 @@ require_relative '../generator_helpers'
 module RubyLLM
   module Generators
     # Generator to add v1.9 columns (cached tokens + raw content support) to existing apps.
+    #
+    # 升级迁移：在 messages 表新增 `cached_tokens` /
+    # `cache_creation_tokens` / `content_raw` 列以支持 prompt 缓存
+    # 计费与原生 payload 持久化。
     class UpgradeToV19Generator < Rails::Generators::Base
       include Rails::Generators::Migration
       include RubyLLM::Generators::GeneratorHelpers

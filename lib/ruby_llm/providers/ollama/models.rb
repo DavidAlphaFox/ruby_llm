@@ -4,6 +4,11 @@ module RubyLLM
   module Providers
     class Ollama
       # Models methods for the Ollama API integration
+      #
+      # Ollama 的 `/v1/models` 列表返回 OpenAI 兼容字段，但不含
+      # context_window/pricing 等。本地模型默认假定支持 streaming /
+      # function_calling / structured_output / vision；用户可在
+      # 模型注册表中覆盖。
       module Models
         def models_url
           'models'

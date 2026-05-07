@@ -4,6 +4,10 @@ module RubyLLM
   module Providers
     class Bedrock
       # Streaming implementation for Bedrock ConverseStream (AWS Event Stream).
+      #
+      # AWS Bedrock 不用 SSE，而是 **`application/vnd.amazon.eventstream`**
+      # 二进制事件流格式（含 12 字节 prelude、可变长度 headers、payload、CRC）。
+      # 本模块自实现解析器，把每个事件提取出来后构造 {Chunk}。
       module Streaming
         private
 

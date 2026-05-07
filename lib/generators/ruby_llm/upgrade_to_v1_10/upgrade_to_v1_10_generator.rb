@@ -7,6 +7,9 @@ require_relative '../generator_helpers'
 module RubyLLM
   module Generators
     # Generator to add v1.10 columns (thinking output + thinking tokens) to existing apps.
+    #
+    # 升级迁移：在 messages 表新增 `thinking_text` / `thinking_signature` /
+    # `thinking_tokens` 列，用于持久化模型推理（reasoning）输出。
     class UpgradeToV110Generator < Rails::Generators::Base
       include Rails::Generators::Migration
       include RubyLLM::Generators::GeneratorHelpers

@@ -4,6 +4,9 @@ module RubyLLM
   module Providers
     class OpenAI
       # Embeddings methods of the OpenAI API integration
+      #
+      # OpenAI `/v1/embeddings` 协议实现。当输入是单字符串时，把
+      # `data[0].embedding` 解包为单维向量；输入是数组时返回二维向量。
       module Embeddings
         module_function
 

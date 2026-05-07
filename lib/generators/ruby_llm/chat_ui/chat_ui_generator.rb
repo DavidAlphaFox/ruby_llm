@@ -6,6 +6,13 @@ require_relative '../generator_helpers'
 module RubyLLM
   module Generators
     # Generates a simple chat UI scaffold for RubyLLM
+    #
+    # `bin/rails g ruby_llm:chat_ui` 一键生成完整的 ChatGPT 风格 UI：
+    # - controllers / views / partials / Turbo streams
+    # - 支持 Tailwind 与 scaffold 两套样式（`--ui=tailwind` / `--ui=scaffold`，
+    #   默认 `auto` 检测项目是否已装 Tailwind）
+    # - 支持自定义模型名（与 `ruby_llm:install` 用同一套 `chat:Name`
+    #   语法）
     class ChatUIGenerator < Rails::Generators::Base
       include RubyLLM::Generators::GeneratorHelpers
 

@@ -3,6 +3,12 @@
 module RubyLLM
   module Providers
     # AWS Bedrock Converse API integration.
+    #
+    # AWS Bedrock 提供 Anthropic / Mistral / Meta / Amazon 自家等多家
+    # 模型的统一入口。该 provider 走 **Converse API**（与 Anthropic
+    # 直连协议**不同**），认证用 AWS SigV4 签名（见 `Bedrock::Auth`），
+    # 流式用 AWS 自定义二进制 `application/vnd.amazon.eventstream`
+    # （见 `Bedrock::Streaming`）。
     class Bedrock < Provider
       include Bedrock::Auth
       include Bedrock::Chat
@@ -14,10 +20,13 @@ module RubyLLM
         "https://bedrock-runtime.#{bedrock_region}.amazonaws.com"
       end
 
+      # 认证不通过静态 header；每个请求都要 SigV4 重新签名（见 `signed_post`）。
       def headers
         {}
       end
 
+      # 覆盖 complete 以做 params 归一化：把 RubyLLM 的 `top_k` 等
+      # 字段挪到 Bedrock Converse API 的 `additionalModelRequestFields`。
       # rubocop:disable Metrics/ParameterLists
       def complete(messages, tools:, temperature:, model:, params: {}, headers: {}, schema: nil, thinking: nil,
                    tool_prefs: nil, &)
@@ -38,6 +47,8 @@ module RubyLLM
       end
       # rubocop:enable Metrics/ParameterLists
 
+      # AWS 错误响应字段名不一致（message / Message / error / __type
+      # 都见过），逐个尝试。
       def parse_error(response)
         return if response.body.nil? || response.body.empty?
 
@@ -47,6 +58,8 @@ module RubyLLM
         body['message'] || body['Message'] || body['error'] || body['__type'] || super
       end
 
+      # 模型列表接口在另一个域名（bedrock 而非 bedrock-runtime），
+      # 需要单独签名。
       def list_models
         response = signed_get(models_api_base, models_url)
         parse_list_models_response(response, slug, capabilities)

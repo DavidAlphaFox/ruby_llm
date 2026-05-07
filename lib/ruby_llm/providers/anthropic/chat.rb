@@ -4,6 +4,16 @@ module RubyLLM
   module Providers
     class Anthropic
       # Chat methods for the Anthropic API implementation
+      #
+      # Anthropic Messages API（`/v1/messages`）协议实现。
+      #
+      # 与 OpenAI 协议的关键差异：
+      # - **system 消息独立字段**：不能放进 messages 数组，要抽出来作为
+      #   `system` 顶层字段；多个 system 消息会被合并并打 warning
+      # - **必填 max_tokens**：Anthropic 强制 max_tokens（默认 4096）
+      # - **思考独立字段**：`thinking: {type: 'enabled', budget_tokens: ...}`
+      #   通过 budget 控制；返回时也以独立 content block（type=thinking）出现
+      # - **content 是数组**：每条消息的 content 总是 block 数组（不能是裸字符串）
       module Chat
         module_function
 

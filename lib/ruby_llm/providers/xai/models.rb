@@ -4,10 +4,16 @@ module RubyLLM
   module Providers
     class XAI
       # Models metadata for xAI list models.
+      #
+      # xAI 的 `/v1/models` 不返回 capabilities/pricing/context_window，
+      # 因此本模块维护多个静态白名单（{IMAGE_MODELS}、{VISION_MODELS}、
+      # {REASONING_MODELS}...）按 model_id 推断能力。
       module Models
         module_function
 
+        # 图像生成专用模型。
         IMAGE_MODELS = %w[grok-2-image-1212].freeze
+        # 支持视觉输入的模型。
         VISION_MODELS = %w[
           grok-2-vision-1212
           grok-4-0709

@@ -5,15 +5,39 @@ require 'active_support/concern'
 module RubyLLM
   module ActiveRecord
     # Methods mixed into chat models.
+    #
+    # `acts_as_chat` 注入到 Chat AR 类的方法 —— 这是 RubyLLM Rails 集成
+    # 中**最重的**模块，承担：
+    #
+    # 1. **字符串模型 → AR 模型记录的转换**：用户写 `Chat.create!(model: 'gpt-5')`
+    #    时 `model=` 把字符串暂存为 `@model_string`，`before_save` 钩子
+    #    `resolve_model_from_strings` 把它解析为真正的 Model AR 记录并
+    #    建立 belongs_to 关联。
+    # 2. **`to_llm` 桥接**：把 AR Chat 行 + 历史消息行还原为 RubyLLM::Chat
+    #    实例，并安装持久化回调（after_message 时把消息写回 DB）。
+    # 3. **Chat DSL 转发**：`with_tool` / `with_temperature` / `ask` 等
+    #    都先 `to_llm.with_xxx(...)` 再返回 self，让 AR 链式调用成立。
+    # 4. **运行时指令**：区分"持久化的 system instruction"（写入
+    #    messages 表）与"运行时 instruction"（仅本进程生效），由
+    #    {Agent} 的两种使用模式驱动。
     module ChatMethods
       extend ActiveSupport::Concern
 
       included do
+        # 在保存前把暂存的 model/provider 字符串解析为 AR 模型记录。
         before_save :resolve_model_from_strings
       end
 
+      # @!attribute [rw] assume_model_exists
+      #   @return [Boolean] 是否跳过模型注册表校验（与 RubyLLM.chat 同名参数等价）
+      # @!attribute [rw] context
+      #   @return [RubyLLM::Context, nil] 局部上下文
       attr_accessor :assume_model_exists, :context
 
+      # 写入 model：字符串走"延迟解析"路径；其他对象（AR Model 记录）
+      # 直接走 belongs_to 关联。
+      # 当 model_association_name 与列名同名时，super 调用 AR 自带的
+      # 关联 setter；否则要写到自定义关联名。
       def model=(value)
         @model_string = value if value.is_a?(String)
         return if value.is_a?(String)
@@ -25,24 +49,31 @@ module RubyLLM
         end
       end
 
+      # 单独写 model_id 字符串（与 model= 相同路径）。
       def model_id=(value)
         @model_string = value
       end
 
+      # 读 model_id：转发到关联模型行的 model_id 列。
       def model_id
         model_association&.model_id
       end
 
+      # 单独写 provider —— 暂存等到 `resolve_model_from_strings` 处理。
       def provider=(value)
         @provider_string = value
       end
 
+      # 读 provider：转发到关联模型行的 provider 列。
       def provider
         model_association&.provider
       end
 
       private
 
+      # `before_save` 钩子：把 `@model_string` / `@provider_string` 解析为
+      # `Model::Info`，再 `find_or_create_by!` 建立关联记录。
+      # 解析路径覆盖默认模型、provider 强制、assume_exists 等所有情况。
       def resolve_model_from_strings # rubocop:disable Metrics/PerceivedComplexity
         config = context&.config || RubyLLM.config
         @model_string ||= config.default_model unless model_association
@@ -77,6 +108,16 @@ module RubyLLM
 
       public
 
+      # AR Chat 行 → RubyLLM::Chat 实例（带历史回放与持久化回调）。
+      #
+      # 流程：
+      # 1. 惰性创建底层 RubyLLM::Chat（缓存到 `@chat`）
+      # 2. 重置消息历史
+      # 3. 把 messages 关联按时序排好后逐条 `add_message`
+      # 4. 重新应用任何"运行时指令"
+      # 5. 安装 after_message / after_tool_result 持久化回调
+      #
+      # @return [RubyLLM::Chat]
       def to_llm
         model_record = model_association
         @chat ||= (context || RubyLLM).chat(
@@ -95,6 +136,12 @@ module RubyLLM
         setup_persistence_callbacks
       end
 
+      # 设置 system 指令（**会持久化**到 messages 表）。
+      #
+      # @param instructions [String]
+      # @param append [Boolean] 是否追加（false 则替换）
+      # @param replace [Boolean, nil] 旧版兼容
+      # @return [self]
       def with_instructions(instructions, append: false, replace: nil)
         append = append_instructions?(append:, replace:)
         persist_system_instruction(instructions, append:)
@@ -103,6 +150,9 @@ module RubyLLM
         self
       end
 
+      # 设置 system 指令（**仅运行时**，不写库）。
+      # 用于 Agent 的 `find` 路径：拿到 DB 里既有的会话后，临时叠加
+      # 当前 Agent 类声明的 instructions，但不污染历史。
       def with_runtime_instructions(instructions, append: false, replace: nil)
         append = append_instructions?(append:, replace:)
         store_runtime_instruction(instructions, append:)

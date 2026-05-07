@@ -4,6 +4,9 @@ module RubyLLM
   module Providers
     class Ollama
       # Chat methods of the Ollama API integration
+      #
+      # 使用 OpenAI 兼容协议；本地服务，不强制 system→developer 翻译。
+      # 媒体附件走 Ollama::Media（仅支持 image/text）。
       module Chat
         module_function
 

@@ -4,6 +4,8 @@ module RubyLLM
   module Providers
     class Mistral
       # Embeddings methods for Mistral API
+      #
+      # 协议格式与 OpenAI 一致；不支持 `dimensions` 参数（被忽略）。
       module Embeddings
         module_function
 

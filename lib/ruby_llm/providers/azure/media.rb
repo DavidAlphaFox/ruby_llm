@@ -4,6 +4,10 @@ module RubyLLM
   module Providers
     class Azure
       # Handles formatting of media content (images, audio) for Azure OpenAI-compatible APIs.
+      #
+      # 与 OpenAI Media 协议相同。**不支持 PDF 附件**（Azure 部署的
+      # 模型未必支持 file 块），其他类型直接复用 OpenAI::Media 的
+      # 各 format_xxx 工具函数。
       module Media
         module_function
 

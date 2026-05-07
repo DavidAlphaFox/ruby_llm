@@ -4,6 +4,13 @@ module RubyLLM
   module Providers
     class Anthropic
       # Tools methods of the Anthropic API integration
+      #
+      # Anthropic 工具调用协议：
+      # - 工具定义为 `{name, description, input_schema}`（与 OpenAI
+      #   `function.parameters` 同义但 key 名不同）
+      # - 模型调用工具时返回 content block `{type: 'tool_use', id, name, input}`
+      # - 工具结果回传为 `{type: 'tool_result', tool_use_id, content}`
+      #   嵌入到 user 消息的 content 数组中
       module Tools
         module_function
 

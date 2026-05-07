@@ -4,6 +4,9 @@ module RubyLLM
   module Providers
     class OpenAI
       # Moderation methods of the OpenAI API integration
+      #
+      # OpenAI `/v1/moderations` 协议实现。直接把 `results` 数组传给
+      # {RubyLLM::Moderation}（每项含 flagged/categories/category_scores）。
       module Moderation
         module_function
 

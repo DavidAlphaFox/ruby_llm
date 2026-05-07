@@ -3,6 +3,10 @@
 module RubyLLM
   module Providers
     # Google Vertex AI implementation
+    #
+    # Vertex AI 是 Gemini 的企业版（GCP 域名 + IAM 鉴权 + region/global
+    # 端点）。继承 Gemini 复用大部分协议格式，覆盖：base url（含 location）、
+    # 鉴权（OAuth bearer token，由 googleauth gem 颁发）。
     class VertexAI < Gemini
       include VertexAI::Chat
       include VertexAI::Streaming
@@ -10,6 +14,7 @@ module RubyLLM
       include VertexAI::Models
       include VertexAI::Transcription
 
+      # OAuth scope；同时声明两个，部分 Vertex 端点需要 retriever scope。
       SCOPES = [
         'https://www.googleapis.com/auth/cloud-platform',
         'https://www.googleapis.com/auth/generative-language.retriever'
@@ -17,6 +22,7 @@ module RubyLLM
 
       def initialize(config)
         super
+        # @authorizer 延迟初始化（避免在不需要鉴权的场景加载 googleauth）。
         @authorizer = nil
       end
 
@@ -28,6 +34,8 @@ module RubyLLM
         end
       end
 
+      # 每次取 headers 都通过 authorizer 取一个有效的 OAuth token。
+      # VCR 测试场景下用固定 token，避免 cassette 中残留真实凭据。
       def headers
         if defined?(VCR) && !VCR.current_cassette.recording?
           { 'Authorization' => 'Bearer test-token' }
@@ -51,6 +59,9 @@ module RubyLLM
 
       private
 
+      # 优先用 service account JSON（用户在 config 中显式给出），
+      # 否则退回 GCP "application default credentials"（GCE 元数据
+      # 服务、gcloud CLI 缓存等）。
       def initialize_authorizer
         require 'googleauth'
         @authorizer =

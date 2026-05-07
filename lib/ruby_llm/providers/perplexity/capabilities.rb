@@ -4,9 +4,14 @@ module RubyLLM
   module Providers
     class Perplexity
       # Provider-level capability checks and narrow registry fallbacks.
+      #
+      # Perplexity 的 sonar 系列模型固定 5 款，无在线模型 list API；
+      # 价格、能力、上下文长度都按家族硬编码。
       module Capabilities
         module_function
 
+        # 5 款 sonar 模型的每百万 token 单价。
+        # `sonar_deep_research` 额外有 reasoning_output 单价。
         PRICES = {
           sonar: { input: 1.0, output: 1.0 },
           sonar_pro: { input: 3.0, output: 15.0 },

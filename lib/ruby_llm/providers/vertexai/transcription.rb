@@ -4,6 +4,9 @@ module RubyLLM
   module Providers
     class VertexAI
       # Vertex AI specific helpers for audio transcription
+      #
+      # 转写复用 Gemini 的"用 generateContent 让多模态模型转写"思路，
+      # 仅覆盖 URL（与 Vertex chat 同款 project/location 路径）。
       module Transcription
         private
 

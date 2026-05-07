@@ -4,9 +4,17 @@ module RubyLLM
   module Providers
     class Bedrock
       # Models methods for AWS Bedrock.
+      #
+      # Bedrock 模型 ID 有"区域前缀"概念（cross-region inference profile）：
+      # 同一基础模型在不同区域有 `us.`、`eu.`、`ap.` 等前缀的版本。
+      # 本模块负责：
+      # - 列出 `/foundation-models` 与 `/inference-profiles`
+      # - 根据当前 region 解析模型 ID 的正确前缀（{Models.with_region_prefix}）
+      # - 对支持的模型自动启用 inference profile
       module Models
         module_function
 
+        # AWS Bedrock 支持的区域前缀（用于 cross-region inference profile）。
         REGION_PREFIXES = %w[global us eu ap sa ca me af il].freeze
 
         def models_api_base

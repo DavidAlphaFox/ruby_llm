@@ -4,9 +4,19 @@ module RubyLLM
   module Providers
     class OpenAI
       # Handles formatting of media content (images, audio) for OpenAI APIs
+      #
+      # 把 `Content`（文本 + 多附件）翻译成 OpenAI 的 `content` 数组格式：
+      # - 文本块：`{type: 'text', text: ...}`
+      # - 图像：`{type: 'image_url', image_url: {url: ...}}`（URL 或 data URI）
+      # - PDF：`{type: 'file', file: {filename, file_data}}`（gpt-4o 等支持）
+      # - 音频：`{type: 'input_audio', input_audio: {data, format}}`
+      # - 文本文件：`{type: 'text', text: <file>...</file>}` 包裹后嵌入
+      # - {Content::Raw}：直接传 value（用户自己负责格式正确）
       module Media
         module_function
 
+        # 入口：根据 content 形态分派。
+        # 未识别的附件类型抛 {UnsupportedAttachmentError}。
         def format_content(content) # rubocop:disable Metrics/PerceivedComplexity
           if content.is_a?(RubyLLM::Content::Raw)
             value = content.value

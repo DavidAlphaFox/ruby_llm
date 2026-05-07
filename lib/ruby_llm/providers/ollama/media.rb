@@ -4,6 +4,9 @@ module RubyLLM
   module Providers
     class Ollama
       # Handles formatting of media content (images, audio) for Ollama APIs
+      #
+      # 仅支持 image 与 text 文件附件；其他类型抛
+      # UnsupportedAttachmentError。复用 OpenAI::Media 的工具方法。
       module Media
         extend OpenAI::Media
 

@@ -4,8 +4,14 @@ module RubyLLM
   module Providers
     class VertexAI
       # Models methods for the Vertex AI integration
+      #
+      # Vertex AI 的模型列表 API 不返回 Google 自家的 Gemini 系列
+      # （它们被视为"内置 publisher 模型"）。因此本模块维护一份
+      # `KNOWN_GOOGLE_MODELS` 静态白名单，把 Gemini 模型补充到注册表。
       module Models
         # Gemini and other Google models that aren't returned by the API
+        # 不会被 Vertex `:listModels` 端点返回的 Google publisher 模型清单
+        # —— 需要手动补充到模型注册表。
         KNOWN_GOOGLE_MODELS = %w[
           gemini-2.5-flash-lite
           gemini-2.5-pro

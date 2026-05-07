@@ -4,6 +4,10 @@ module RubyLLM
   module Providers
     class Gemini
       # Models methods for the Gemini API integration
+      #
+      # `/v1beta/models` 列表。响应字段名与 OpenAI 完全不同（包含
+      # 输入/输出 token 限额、支持的方法等），需要自己适配为
+      # {Model::Info}。
       module Models
         module_function
 

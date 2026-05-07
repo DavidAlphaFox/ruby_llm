@@ -5,9 +5,26 @@ require 'uri'
 
 module RubyLLM
   # A class representing a file attachment.
+  #
+  # 文件附件抽象。
+  #
+  # 把多种"附件来源"统一为一个对象，屏蔽底层差异：
+  # - **本地路径**：String / Pathname
+  # - **URL**：http(s) 字符串或 URI
+  # - **IO 对象**：File / StringIO / ActionDispatch::Http::UploadedFile
+  # - **ActiveStorage**：Blob / Attachment / Attached::One / Attached::Many
+  #
+  # 提供：MIME 类型自动检测（基于 Marcel）、内容懒加载、base64 编码、
+  # 类型判定（image?/video?/audio?/pdf?/text?）、序列化、`for_llm` 拼装
+  # （文本类用 `<file>` 标签包裹；二进制类用 `data:` URI）。
   class Attachment
+    # @return [URI, Pathname, IO, ActiveStorage::*, Object] 已类型转换后的来源
+    # @return [String] 文件名（用于日志、provider 协议）
+    # @return [String] MIME 类型（如 `'image/png'`）
     attr_reader :source, :filename, :mime_type
 
+    # @param source [String, URI, Pathname, IO, ActiveStorage::*]
+    # @param filename [String, nil] 显式文件名；缺省时从 source 推断
     def initialize(source, filename: nil)
       @source = source
       @source = source_type_cast
@@ -16,18 +33,22 @@ module RubyLLM
       determine_mime_type
     end
 
+    # 是否是 URL 来源。
     def url?
       @source.is_a?(URI) || (@source.is_a?(String) && @source.match?(%r{^https?://}))
     end
 
+    # 是否是本地路径。
     def path?
       @source.is_a?(Pathname) || (@source.is_a?(String) && !url?)
     end
 
+    # 是否是 IO 类对象（响应 `read` 但不是路径/AS Blob）。
     def io_like?
       @source.respond_to?(:read) && !path? && !active_storage?
     end
 
+    # 是否是 ActiveStorage 对象（支持 Blob / Attachment / Attached::One/Many）。
     def active_storage?
       return false unless defined?(ActiveStorage)
 
@@ -37,6 +58,10 @@ module RubyLLM
         @source.is_a?(ActiveStorage::Attached::Many)
     end
 
+    # 懒加载并缓存附件内容。
+    # 不同来源走不同读取路径；无法识别时打 warn 并返回 nil。
+    #
+    # @return [String, nil] 二进制内容
     def content
       return @content if defined?(@content) && !@content.nil?
 
@@ -56,10 +81,14 @@ module RubyLLM
       @content
     end
 
+    # base64 字符串（无换行的 strict 形式，适合 data URI）。
     def encoded
       Base64.strict_encode64(content)
     end
 
+    # 把 IO 类来源持久化到磁盘。
+    #
+    # @param path [String]
     def save(path)
       return unless io_like?
 
@@ -68,6 +97,8 @@ module RubyLLM
       end
     end
 
+    # 拼装可直接嵌入到模型上下文的字符串：
+    # 文本文件用 `<file>` 标签 + 原文；其他类型用 base64 data URI。
     def for_llm
       case type
       when :text
@@ -77,6 +108,7 @@ module RubyLLM
       end
     end
 
+    # 推断附件粗类型：`:image / :video / :audio / :pdf / :text / :unknown`。
     def type
       return :image if image?
       return :video if video?
@@ -87,18 +119,14 @@ module RubyLLM
       :unknown
     end
 
-    def image?
-      RubyLLM::MimeType.image? mime_type
-    end
+    # @return [Boolean]
+    def image? = RubyLLM::MimeType.image?(mime_type)
+    # @return [Boolean]
+    def video? = RubyLLM::MimeType.video?(mime_type)
+    # @return [Boolean]
+    def audio? = RubyLLM::MimeType.audio?(mime_type)
 
-    def video?
-      RubyLLM::MimeType.video? mime_type
-    end
-
-    def audio?
-      RubyLLM::MimeType.audio? mime_type
-    end
-
+    # 转为 provider 期望的简短格式后缀（如 `'mp3'`/`'wav'`/`'png'`）。
     def format
       case mime_type
       when 'audio/mpeg'
@@ -110,20 +138,23 @@ module RubyLLM
       end
     end
 
-    def pdf?
-      RubyLLM::MimeType.pdf? mime_type
-    end
+    # @return [Boolean]
+    def pdf? = RubyLLM::MimeType.pdf?(mime_type)
+    # @return [Boolean]
+    def text? = RubyLLM::MimeType.text?(mime_type)
 
-    def text?
-      RubyLLM::MimeType.text? mime_type
-    end
-
+    # 序列化为 hash（用于持久化）。
     def to_h
       { type: type, source: @source }
     end
 
     private
 
+    # 决定 MIME 类型：
+    # - ActiveStorage：直接用 blob 的 content_type
+    # - URL：通过文件名后缀猜测；若得到 octet-stream 再下载内容嗅探
+    # - 路径/IO：先按文件名猜，再按内容嗅探
+    # 最后做 audio/x-wav → audio/wav 的归一化。
     def determine_mime_type
       return @mime_type = active_storage_content_type if active_storage? && active_storage_content_type.present?
 

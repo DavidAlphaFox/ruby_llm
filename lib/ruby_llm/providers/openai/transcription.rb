@@ -4,6 +4,11 @@ module RubyLLM
   module Providers
     class OpenAI
       # Audio transcription methods for the OpenAI API integration
+      #
+      # OpenAI `/v1/audio/transcriptions` 协议实现，支持 Whisper 与
+      # gpt-4o-(*)-transcribe 系列。可选 chunking_strategy（仅
+      # diarize 模型）、timestamp_granularities、说话人识别（speaker
+      # references 编码为 base64 data URI）。
       module Transcription
         module_function
 

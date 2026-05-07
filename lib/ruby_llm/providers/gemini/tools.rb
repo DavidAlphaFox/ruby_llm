@@ -4,6 +4,11 @@ module RubyLLM
   module Providers
     class Gemini
       # Tools methods for the Gemini API implementation
+      #
+      # Gemini 工具协议：tools 是数组，包一层 `functionDeclarations`；
+      # 工具调用以 `parts[i].functionCall {name, args}` 出现，结果以
+      # `parts[i].functionResponse {name, response}` 回传。
+      # 注意 Gemini 不支持并行工具调用控制。
       module Tools
         def format_tools(tools)
           return [] if tools.empty?

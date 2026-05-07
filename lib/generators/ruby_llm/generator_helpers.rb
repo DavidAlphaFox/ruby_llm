@@ -3,7 +3,23 @@
 module RubyLLM
   module Generators
     # Shared helpers for RubyLLM generators
+    #
+    # 多个 Rails generator 共享的辅助方法。
+    #
+    # 主要职责：
+    # 1. **解析自定义模型名映射**：用户在 generator 命令行可写
+    #    `chat:ChatBot message:ChatMessage`，由 {#parse_model_mappings}
+    #    解析成 `{chat: 'ChatBot', message: 'ChatMessage'}`。
+    # 2. **派生命名**：为每种 AR 模型类型动态生成访问器
+    #    `*_model_name` / `*_table_name` / `*_variable_name` /
+    #    `*_partial` / `*_controller_class_name` —— 处理命名空间
+    #    （`LLM::Chat` → table `llm_chats`、partial `llm/chats/chat`）。
+    # 3. **生成 acts_as_* 声明字符串**：根据自定义命名推断需要传入哪些
+    #    覆盖参数（如 association 名变了就要带 `messages:`，类名与
+    #    classify 不一致就要带 `message_class:` 等）。
+    # 4. **DB 适配辅助**：postgresql? / mysql? / table_exists? / migration_version。
     module GeneratorHelpers
+      # 解析 `key:Name` 形式的命令行参数为 `{type: 类名}` 哈希。
       def parse_model_mappings
         @model_names = {
           chat: 'Chat',

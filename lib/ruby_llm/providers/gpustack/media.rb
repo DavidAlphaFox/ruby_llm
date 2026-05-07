@@ -4,6 +4,10 @@ module RubyLLM
   module Providers
     class GPUStack
       # Handles formatting of media content (images, audio) for GPUStack APIs
+      #
+      # 仅支持 image 与 text 文件附件；其他类型（PDF/audio/video）
+      # 抛 UnsupportedAttachmentError。`format_image` 中显式带
+      # `detail: 'auto'`（部分 vLLM 后端要求）。
       module Media
         extend OpenAI::Media
 

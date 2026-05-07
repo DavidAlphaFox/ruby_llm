@@ -4,6 +4,10 @@ module RubyLLM
   module Providers
     class OpenRouter
       # Models methods of the OpenRouter API integration
+      #
+      # OpenRouter 的 `/v1/models` 返回**最丰富**的元数据（context_length、
+      # pricing、modality、architecture、supported_parameters 等），因此
+      # 本模块直接利用响应字段构造 Model::Info，无需依赖 Capabilities 兜底。
       module Models
         module_function
 

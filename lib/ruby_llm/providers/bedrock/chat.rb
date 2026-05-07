@@ -4,6 +4,11 @@ module RubyLLM
   module Providers
     class Bedrock
       # Chat methods for Bedrock Converse API.
+      #
+      # Bedrock 的统一 Converse API 协议（不是各模型供应商的原生协议）。
+      # 端点 `/model/{model_id}/converse`，请求体含 messages、system、
+      # toolConfig、inferenceConfig（temperature/topP 等）、
+      # additionalModelRequestFields（provider 私有字段如 top_k）。
       module Chat
         module_function
 
